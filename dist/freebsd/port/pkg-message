@@ -1,0 +1,10 @@
+[
+{ type: install
+  message: <<EOM
+Live capture needs tracing privileges and an available DTrace syscall provider.
+The application does not load modules or modify boot/sysctl/privilege policy.
+See man procmon and /usr/local/share/doc/procmon-freebsd/README.md.
+This is a community port, not an official Microsoft FreeBSD release.
+EOM
+}
+]

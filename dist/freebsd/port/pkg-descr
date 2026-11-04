@@ -1,0 +1,6 @@
+Community port of Microsoft ProcMon-Linux for native FreeBSD 15.1 amd64.
+Uses the base DTrace syscall provider and CTF metadata, with a curses interface,
+PID/syscall filters, typed arguments, bounded snapshots, user symbols, statistics,
+private SQLite capture and replay. Requires tracing privileges for live capture.
+FreeBSD and Linux trace files use distinct formats. Other releases, ABIs and
+sustained production workloads require further validation.

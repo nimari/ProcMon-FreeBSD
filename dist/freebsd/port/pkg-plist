@@ -1,0 +1,5 @@
+bin/procmon
+share/man/man1/procmon.1.gz
+%%DOCSDIR%%/README.md
+%%DOCSDIR%%/LICENSE
+%%DOCSDIR%%/SQLITE-NOTICE
