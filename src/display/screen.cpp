@@ -17,7 +17,11 @@
 #include "screen.h"
 #include "event_formatter.h"
 #include "kill_event_formatter.h"
+#ifdef __FreeBSD__
+#include "../tracer/freebsd/app/logging.h"
+#else
 #include "../logging/easylogging++.h"
+#endif
 #include "../common/telemetry.h"
 
 #include <version.h>

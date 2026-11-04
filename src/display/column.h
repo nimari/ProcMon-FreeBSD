@@ -22,7 +22,11 @@
 #include <string>
 #include <vector>
 
+#ifdef __FreeBSD__
+#include "../tracer/freebsd/app/logging.h"
+#else
 #include "../logging/easylogging++.h"
+#endif
 
 #define COLUMN_PADDING          2
 

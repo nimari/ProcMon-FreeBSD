@@ -7,7 +7,7 @@ import subprocess
 
 BASE = "a40cf056351d19830a96d2d22beed96a18f7707c"
 PATHS = ("src/common/telemetry.h", "src/storage/storage_proxy.h", "src/configuration/procmon_configuration.h",
-         "src/display/screen.h", "src/display/screen.cpp", "src/display/column.cpp")
+         "src/display/screen.h", "src/display/screen.cpp", "src/display/column.cpp", "src/display/column.h")
 
 
 def linux_view(text):
@@ -40,4 +40,4 @@ current = (root / "CMakeLists.txt").read_text()
 branch = 'if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")\n    include(cmake/FreeBSD.cmake)\n    return()\nendif()\n'
 assert current.count(branch) == 1
 assert [line.rstrip() for line in current.replace(branch, "").splitlines() if line.strip()] == [line.rstrip() for line in previous.splitlines() if line.strip()]
-print("PASS: Linux views of six shared source/header files and default CMake body are unchanged")
+print("PASS: Linux views of seven shared source/header files and default CMake body are unchanged")

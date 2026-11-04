@@ -6,7 +6,7 @@ umask 077
 test "$#" -eq 6 && test "$(id -u)" -ne 0 || { echo 'usage: test_package.sh BUILD PACKAGE NEW_EVIDENCE UID GID COMPAT_FIXTURE (ordinary user)' >&2; exit 2; }
 build=$1 package=$2 out=$3 uid=$4 gid=$5 compat=$6
 test ! -e "$out"
-for file in /usr/local/bin/procmon /usr/local/share/man/man1/procmon.1.gz /usr/local/share/doc/procmon-freebsd/README.md /usr/local/share/doc/procmon-freebsd/LICENSE /usr/local/share/doc/procmon-freebsd/SQLITE-NOTICE; do
+for file in /usr/local/bin/procmon /usr/local/share/man/man1/procmon.1.gz /usr/local/share/doc/procmon-freebsd/README.md /usr/local/share/doc/procmon-freebsd/LICENSE /usr/local/share/doc/procmon-freebsd/SQLITE-NOTICE /usr/local/share/doc/procmon-freebsd/EASYLOGGINGPP-LICENSE; do
     test ! -e "$file" && test ! -L "$file" || { echo "refusing existing destination: $file" >&2; exit 1; }
 done
 if pkg info -e procmon-freebsd; then echo 'refusing pre-existing package' >&2; exit 1; fi
@@ -34,7 +34,7 @@ sha256 /usr/local/bin/procmon > "$out/installed-binary.sha256"
 doas pkg delete -y procmon-freebsd > "$out/deinstall.log" 2>&1
 installed=0
 if pkg info -e procmon-freebsd; then exit 1; fi
-for file in /usr/local/bin/procmon /usr/local/share/man/man1/procmon.1.gz /usr/local/share/doc/procmon-freebsd/README.md /usr/local/share/doc/procmon-freebsd/LICENSE /usr/local/share/doc/procmon-freebsd/SQLITE-NOTICE; do
+for file in /usr/local/bin/procmon /usr/local/share/man/man1/procmon.1.gz /usr/local/share/doc/procmon-freebsd/README.md /usr/local/share/doc/procmon-freebsd/LICENSE /usr/local/share/doc/procmon-freebsd/SQLITE-NOTICE /usr/local/share/doc/procmon-freebsd/EASYLOGGINGPP-LICENSE; do
     test ! -e "$file" && test ! -L "$file"
 done
 echo 'PASS: guarded package install, integrity, installed full-catalog capture/replay/manual, and clean removal'

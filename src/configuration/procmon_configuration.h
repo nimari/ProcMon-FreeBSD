@@ -38,7 +38,11 @@
 #endif
 #include "../common/event.h"
 #include "../common/cli_utils.h"
+#ifdef __FreeBSD__
+#include "../tracer/freebsd/app/logging.h"
+#else
 #include "../logging/easylogging++.h"
+#endif
 
 #define DEFAULT_TIMESTAMP_LENGTH 25
 #define DEFAULT_DATESTAMP_LENGTH 11
