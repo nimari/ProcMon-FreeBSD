@@ -23,6 +23,9 @@
 #include "storage_engine.h"
 #include "mock_storage_engine.h"
 #include "sqlite3_storage_engine.h"
+#ifdef __FreeBSD__
+#include "../tracer/freebsd/app/storage.h"
+#endif
 
 class StorageProxy
 {
@@ -45,6 +48,10 @@ class StorageProxy
 
     static IStorageEngine *StorageFactory(StorageEngineType type)
     {
+#ifdef __FreeBSD__
+        (void)type;
+        return new procmon::freebsd::app::NativeStorage();
+#else
         switch (type)
         {
         case StorageEngineType::Mock:
@@ -55,6 +62,7 @@ class StorageProxy
         default:
             return new MockStorageEngine();
         }
+#endif
     };
 
     static IStorageEngine *StorageFactory(std::string type)

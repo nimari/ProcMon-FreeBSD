@@ -66,6 +66,9 @@ int Column::resize(int height, int width, int x)
     this->width = width;
     this->x = x;
 
+#ifdef __FreeBSD__
+    move_panel(this->panel, this->y, x);
+#endif
     return wresize(this->win, height, width);
 }
 
@@ -144,7 +147,11 @@ void Column::hideColumn()
 
 void Column::showColumn()
 {
+#ifdef __FreeBSD__
+    show_panel(this->panel); top_panel(this->panel);
+#else
     panel_above(this->panel);
+#endif
 }
 
 void Column::columnPrintFill(int colorPair, int x, int y, const char * fmt, ...)

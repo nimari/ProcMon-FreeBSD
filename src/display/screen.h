@@ -37,14 +37,21 @@
 #include "../configuration/procmon_configuration.h"
 
 // Symbol resolution code
+#ifndef __FreeBSD__
 #include "bcc_elf.h"
 #include "bcc_perf_map.h"
 #include "bcc_proc.h"
 #include "bcc_syms.h"
+#endif
 
 // default screen dimensions
+#ifdef __FreeBSD__
+#define MINIMUM_HEIGHT  24
+#define MINIMUM_WIDTH   80
+#else
 #define MINIMUM_HEIGHT  15
 #define MINIMUM_WIDTH   100
+#endif
 #define HEADER_HEIGHT   2
 #define FOOTER_HEIGHT   1
 #define ROW_HEIGHT      1
@@ -53,12 +60,21 @@
 #define DEFAULT_HELP_VIEW_HEIGHT    15
 
 // default column sizes
+#ifdef __FreeBSD__
+#define DEFAULT_TIME_COL_WIDTH      10
+#define DEFAULT_PID_COL_WIDTH       7
+#define DEFAULT_PROCESS_COL_WIDTH   12
+#define DEFAULT_OPERATION_COL_WIDTH 16
+#define DEFAULT_DURATION_COL_WIDTH  10
+#define DEFAULT_RESULT_COL_WIDTH    16
+#else
 #define DEFAULT_TIME_COL_WIDTH      15
 #define DEFAULT_PID_COL_WIDTH       10
 #define DEFAULT_PROCESS_COL_WIDTH   25
 #define DEFAULT_OPERATION_COL_WIDTH 20
 #define DEFAULT_DURATION_COL_WIDTH  20
 #define DEFAULT_RESULT_COL_WIDTH    32
+#endif
 
 // default column X positions
 #define DEFAULT_PID_COL_X           (int)DEFAULT_TIME_COL_WIDTH
@@ -83,8 +99,13 @@
 #define MENU_COLOR_ERROR                8
 
 // default colors
+#ifdef __FreeBSD__
+#define LIGHT_BLUE COLOR_CYAN
+#define BLUE COLOR_BLUE
+#else
 #define LIGHT_BLUE  33
 #define BLUE        35
+#endif
 
 #define FOOTER_X 0
 
@@ -127,6 +148,11 @@ class Screen {
         // detail view dimensions
         int detailViewHeight;
         int detailViewWidth;
+#ifdef __FreeBSD__
+        int detailScroll = 0;
+        unsigned nativeExports = 0;
+        std::string nativeNotice;
+#endif
 
         // Stat view dimensions
         int statViewHeight;
@@ -182,10 +208,12 @@ class Screen {
 
         // Symbol resolution
         std::unordered_map<int, void*> symEnginePidMap;
+#ifndef __FreeBSD__
         bcc_symbol_option SymbolOption = {.use_debug_file = 1,
                                         .check_debug_file_crc = 1,
                                         .lazy_symbolize = 1,
                                         .use_symbol_type = (1 << STT_FUNC) | (1 << STT_GNU_IFUNC)};
+#endif
 
 
         // A list of formatters used to special case the output formatting on a per sys call basis

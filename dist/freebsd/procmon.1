@@ -1,0 +1,168 @@
+.\" SPDX-License-Identifier: MIT
+.Dd October 30, 2026
+.Dt PROCMON 1
+.Os
+.Sh NAME
+.Nm procmon
+.Nd inspect native FreeBSD system calls with DTrace
+.Sh SYNOPSIS
+.Nm
+.Op Fl p Ar pid Ns Oo ,pid... Oc
+.Op Fl e Ar syscall Ns Oo ,syscall... Oc
+.Op Fl c Op Ar file
+.Op Fl -duration-ms Ar milliseconds
+.Nm
+.Fl f Ar file
+.Op Fl -dump
+.Op Fl p Ar pids
+.Op Fl e Ar syscalls
+.Sh DESCRIPTION
+This community port of Microsoft ProcMon-Linux uses the native
+.Fx
+ELF64
+syscall provider, base DTrace/CTF, ELF symbols, curses and SQLite.
+The validated target is
+.Fx
+15.1 amd64.
+Live capture requires tracing privileges and an available syscall provider.
+The application does not load modules or change boot, privilege or sysctl
+policy.
+.Pp
+By default, all available native syscall schemas and native user processes
+except the monitor are selected.
+PID selection binds capture to inspected process identities.
+Capture stops when every selected process exits.
+Exec changes the selected image and ends identity-scoped capture as a failure.
+Children are not automatically added.
+.Pp
+Without
+.Fl c
+or
+.Fl -dump ,
+an interactive terminal of at least 80 columns by 24 rows is required.
+.Sh OPTIONS
+.Bl -tag -width "--duration-ms milliseconds"
+.It Fl h , Fl -help
+Display usage without starting tracing.
+.It Fl -version
+Display the port version.
+.It Fl p , Fl -pids Ar list
+Select up to ten comma-separated native ELF64 PIDs.
+.Fl -pid
+is an alias.
+.It Fl e , Fl -events Ar list
+Select comma-separated native syscall names.
+.It Fl -list-events
+List available native names and argument types; requires tracing privileges.
+.It Fl c , Fl -collect Op Ar file
+Capture without curses and save a new
+.Fx
+SQLite trace.
+The default filename is
+.Pa procmon_<epoch>.db .
+An existing destination is rejected.
+.It Fl f , Fl -file Ar file
+Replay a
+.Fx
+trace without opening DTrace.
+Only file read access is needed.
+.It Fl -dump
+With
+.Fl f ,
+write typed JSON Lines instead of displaying curses.
+.It Fl -duration-ms Ar milliseconds
+Stop live capture after 1 through 86400000 milliseconds from readiness.
+Pause time counts toward this wall-clock limit.
+.It Fl -max-events Ar count
+Live event budget, 1 through 1000000; default 100000.
+.It Fl -max-bytes Ar count
+Live encoded/display payload budget, 1 through 268435456; default 67108864.
+This is not a total resident-memory limit.
+.It Fl -no-strings
+Disable selected bounded pathname snapshots; retain pointer values.
+.It Fl -no-buffers
+Disable selected bounded input/output buffer snapshots.
+.It Fl -no-stacks
+Disable user-stack capture and symbol work.
+.It Fl l , Fl -log Ar file
+Write a debug log.
+.It Fl s , Fl -storageEngine Cm sql
+Select the supported SQLite engine.
+.El
+.Sh INTERACTIVE KEYS
+Arrow/page keys navigate events.
+Enter opens/closes event details; arrow/page keys scroll details.
+F1 shows help, F2 sorting, F3 search, F4 filtering, F5 pause/resume,
+F6 export and F8 statistics.
+Use q or F9 to quit.
+Save with F6 before quitting; repeated exports use numbered new paths.
+.Sh TRACE DATA
+All metadata argument positions are retained as exact 64-bit lanes, up to eight.
+Selected paths are bounded to 256 bytes, selected buffers to 32 bytes and user
+stacks to 16 PCs.
+A limit flag also covers a value exactly as long as its bound.
+Pointed-to structures, iovecs and argv/envp are not recursively decoded.
+ELF symbols are best effort and unavailable values are marked.
+.Pp
+Timestamps are relative to DTrace BEGIN, in nanoseconds in storage/JSON.
+Displayed durations are milliseconds.
+The UTC start label is not an exact conversion of the DTrace clock.
+Errno, result, evidence and completed, restart, control-transfer, entry-only,
+cancelled and incomplete states are separate fields.
+.Pp
+Files are private, mode 0600.
+.Fx
+traces carry a separate platform/version identifier; Linux files are
+rejected.
+Replay validates typed rows and their query columns before loading, with a
+256 MiB payload budget.
+JSON strings map bytes to codepoints; Latin-1 encoding recovers original bytes.
+Consumers must retain exact 64-bit integers.
+.Sh SIGNALS AND FAILURES
+SIGINT and SIGTERM stop and drain tracing, without terminating targets.
+Headless mode exports retained data before returning.
+Faults, drops, missing snapshots, unresolved pairs, pause gaps, target changes
+and stop reason are recorded in metadata.
+Budget exhaustion fails explicitly; a failed transaction is rolled back.
+A partial capture is not proof that every call or byte was observed.
+.Sh EXIT STATUS
+.Bl -tag -width "130, 143"
+.It 0
+Success; inspect metadata for cancellation or pause gaps.
+.It 1
+Capture, quality, target, storage or terminal failure.
+.It 2
+Invalid command-line usage.
+.It 130, 143
+SIGINT or SIGTERM stop, respectively.
+.El
+.Sh EXAMPLES
+Replace 1234 with a live native process PID:
+.Bd -literal -offset indent
+doas procmon -p 1234
+doas procmon -p 1234 -e openat,read,write -c capture.db
+doas procmon -f capture.db
+doas procmon -f capture.db --dump > capture.jsonl
+.Ed
+.Sh LIMITATIONS
+The validated release/architecture is
+.Fx
+15.1 amd64.
+Runtime tests select owned fixture PIDs.
+Unfiltered unrelated workloads, sustained production load, jails, other releases
+and ABIs, and Linux runtime regression have not been validated.
+DTrace syscall probes and kernel CTF fields are private interfaces.
+There is no kernel-stack or source-line view.
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr procstat 1
+.Sh AUTHORS
+.An Microsoft Corporation
+authored ProcMon-Linux.
+.An FreeBSD port contributors
+distribute this community port under the MIT license.
+Bundled SQLite is public domain.
+.Sh BUGS
+This is a community port, not an official Microsoft
+.Fx
+release.

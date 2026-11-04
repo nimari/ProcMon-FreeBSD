@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: MIT
+#pragma once
+#define STRFILEVER "@PROJECT_VERSION@-FreeBSD"
+#define VER_COPYRIGHT "ProcMon for Linux copyright Microsoft Corporation; FreeBSD port under the MIT license."

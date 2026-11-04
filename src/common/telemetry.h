@@ -19,6 +19,11 @@
 
 #include "stack_trace.h"
 #include "string.h"
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <memory>
+#include "../tracer/freebsd/app/event.h"
+#endif
 
 #define MAX_BUFFER      128
 
@@ -33,9 +38,17 @@ struct ITelemetry
     uint64_t duration;
     unsigned char *arguments;
     uint64_t timestamp;
+#ifdef __FreeBSD__
+    std::shared_ptr<procmon::freebsd::app::EventData> native;
+#endif
 
     friend bool operator != (ITelemetry a, ITelemetry b)
     {
+#ifdef __FreeBSD__
+        if (bool(a.native) != bool(b.native)) return true;
+        if (a.native && b.native)
+            return procmon::freebsd::app::Encode(*a.native) != procmon::freebsd::app::Encode(*b.native);
+#endif
         if(a.pid != b.pid) return true;
         if(a.stackTrace.Serialize() != b.stackTrace.Serialize()) return true;
         if(a.comm != b.comm) return true;

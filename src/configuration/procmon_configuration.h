@@ -31,7 +31,11 @@
 #include "../storage/storage_proxy.h"
 #include "../tracer/tracer_engine.h"
 #include "../tracer/mock_tracer_engine.h"
+#ifdef __FreeBSD__
+#include "../tracer/freebsd/app/engine.h"
+#else
 #include "../tracer/ebpf/ebpf_tracer_engine.h"
+#endif
 #include "../common/event.h"
 #include "../common/cli_utils.h"
 #include "../logging/easylogging++.h"

@@ -53,6 +53,11 @@ else()
   project (procmon VERSION 0.0.0)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    include(cmake/FreeBSD.cmake)
+    return()
+endif()
+
 set(PROJECT_VERSION_TWEAK 0)
 file(READ "dist/changelog" CHANGE_LOG)
 

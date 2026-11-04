@@ -48,9 +48,11 @@ void Screen::InitializeFormatters()
     formatters.push_back(default_formatter);
 
     // Formatter for the kill syscall
+#ifndef __FreeBSD__
     KillEventFormatter* kill = new KillEventFormatter;
     kill->Initialize("kill", configPtr.get());
     formatters.push_back(kill);
+#endif
 }
 
 void Screen::initScreen(std::shared_ptr<ProcmonConfiguration> config)
@@ -61,6 +63,9 @@ void Screen::initScreen(std::shared_ptr<ProcmonConfiguration> config)
 
     root = initscr();           // start curses mode
     start_color();              // start color mode
+#ifdef __FreeBSD__
+    set_escdelay(100);
+#endif
     raw();                      // Line buffering disabled
     noecho();                   // disable character echo
     halfdelay(1);
@@ -117,8 +122,13 @@ void Screen::run()
     auto storageEngine = config->GetStorage();
     MEVENT mouseEvent;
     int scrollCount = 0;
+#ifdef __FreeBSD__
+    std::chrono::steady_clock::time_point previousTime = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point currentTime;
+#else
     std::chrono::_V2::steady_clock::time_point previousTime = std::chrono::steady_clock::now();
     std::chrono::_V2::steady_clock::time_point currentTime;
+#endif
     int nonRefreshCount = 0;
     int64_t duration = 0;
 
@@ -175,6 +185,12 @@ void Screen::run()
     {
         // read from user
         input = getUserInput();
+#ifdef __FreeBSD__
+        if (input != ERR) nativeNotice.clear();
+        if (procmon::freebsd::app::stopSignal || input == 3) break;
+        if (input == KEY_RESIZE && (getmaxx(stdscr) < MINIMUM_WIDTH || getmaxy(stdscr) < MINIMUM_HEIGHT))
+            throw std::runtime_error("terminal resized below 80 columns by 24 rows");
+#endif
 
         // if we have an active filter echo
         if(filterPromptActive)
@@ -355,18 +371,27 @@ void Screen::run()
             {
                 // Handle scrolling events
                 case KEY_UP:
+#ifdef __FreeBSD__
+                    if (detailViewActive) { detailScroll = std::max(0,detailScroll - 1); showDetailView(); break; }
+#endif
                     if(columnSortViewActive) columnScrollUp();
                     else if (detailViewActive) break;
                     else scrollUp();
                     break;
 
                 case KEY_DOWN:
+#ifdef __FreeBSD__
+                    if (detailViewActive) { ++detailScroll; showDetailView(); break; }
+#endif
                     if(columnSortViewActive) columnScrollDown();
                     else if (detailViewActive) break;
                     else scrollDown();
                     break;
 
                 case KEY_PPAGE:
+#ifdef __FreeBSD__
+                    if (detailViewActive) { detailScroll = std::max(0,detailScroll - screenH / 2); showDetailView(); break; }
+#endif
                     if (scrollCount < MAX_CONTINUOUS_SCROLL || prevInput != KEY_PPAGE)
                     {
                         pageUp();
@@ -376,6 +401,9 @@ void Screen::run()
                     break;
 
                 case KEY_NPAGE:
+#ifdef __FreeBSD__
+                    if (detailViewActive) { detailScroll += screenH / 2; showDetailView(); break; }
+#endif
                     if (scrollCount < MAX_CONTINUOUS_SCROLL || prevInput != KEY_NPAGE)
                     {
                         pageDown();
@@ -409,11 +437,17 @@ void Screen::run()
                     break;
 
                 case KEY_F(3):
+#ifdef __FreeBSD__
+                    filter.clear(); idList.clear(); searchCount = 0;
+#endif
                     searchPromptActive = true;
                     drawSearchPrompt(filter, false);
                     break;
 
                 case KEY_F(4):
+#ifdef __FreeBSD__
+                    filter.clear(); currentPage = 0; currentLine = 1;
+#endif
                     filterPromptActive = true;
                     drawFilterPrompt(filter);
                     break;
@@ -437,7 +471,18 @@ void Screen::run()
                     // only export if we have generated a new tracefile and not opened one
                     if(config->GetTraceFilePath().compare("") == 0)
                     {
+#ifdef __FreeBSD__
+                        try
+                        {
+                            auto path = config->GetOutputTraceFilePath();
+                            if (nativeExports++) path += "." + std::to_string(nativeExports - 1) + ".db";
+                            storageEngine->Export(std::make_tuple(config->GetStartTime(),config->GetEpocStartTime()),path);
+                            nativeNotice = "exported: " + path;
+                        }
+                        catch (const std::exception& error) { nativeNotice = std::string("export failed: ") + error.what(); }
+#else
                         storageEngine->Export(std::make_tuple(config->GetStartTime(), config->GetEpocStartTime()), config->GetOutputTraceFilePath());
+#endif
                     }
                     break;
 
@@ -569,6 +614,10 @@ void Screen::run()
 
         // draw events in datastore to screen
         windowPrintFillRight(headerWin, HEADER_COLOR, 0, HEADER_HEIGHT-1, "%-22s%10d%-5s", config->GetEpocStartTime().c_str(), storageEngine->Size(), "");
+#ifdef __FreeBSD__
+        const auto nativeStatus = nativeNotice.empty() ? procmon::freebsd::app::CaptureStatus() : nativeNotice;
+        mvwaddnstr(headerWin, HEADER_HEIGHT - 1, 0, nativeStatus.c_str(), std::max(0, screenW - 38));
+#endif
 
         // refresh entire window
         refreshScreen();
@@ -580,6 +629,13 @@ void Screen::run()
 
 void Screen::shutdownScreen()
 {
+#ifdef __FreeBSD__
+    for (auto* column : {timeStampColumn,pidColumn,processColumn,operationColumn,resultColumn,durationColumn,detailColumn}) delete column;
+    for (auto* panel : {headerPanel,footerPanel,detailPanel,columnPanel,statPanel,helpPanel}) if (panel) del_panel(panel);
+    for (auto* window : {headerWin,footerWin,detailWin,columnWin,statWin,helpWin}) if (window) delwin(window);
+    for (auto* formatter : formatters) delete formatter;
+    formatters.clear(); curs_set(1); endwin();
+#else
     // delete all windows created
     delwin(headerWin);
     delwin(footerWin);
@@ -604,6 +660,7 @@ void Screen::shutdownScreen()
 
     // end curses mode
     endwin();
+#endif
 }
 
 int Screen::getUserInput()
@@ -870,10 +927,15 @@ void Screen::initHelpView()
 
 void Screen::initDetailView()
 {
+#ifdef __FreeBSD__
+    int detailWindowHeight = screenH - 2, detailWindowWidth = screenW - 4;
+    int detailWindow_Y = 1, detailWindow_X = 2;
+#else
     int detailWindowHeight = screenH / 2;
     int detailWindowWidth = screenW * 2 / 3;
     int detailWindow_Y = screenH / 4;
     int detailWindow_X = screenW / 6;
+#endif
 
     detailWin = newwin(detailWindowHeight, detailWindowWidth, detailWindow_Y, detailWindow_X);
     detailPanel = new_panel(detailWin);
@@ -1133,6 +1195,9 @@ int Screen::getCurrentPage()
 
 void Screen::refreshScreen()
 {
+#ifdef __FreeBSD__
+    update_panels(); doupdate();
+#else
     // refresh each main window individually
     wnoutrefresh(headerWin);
     wnoutrefresh(footerWin);
@@ -1155,6 +1220,7 @@ void Screen::refreshScreen()
 
     // write changes to screen
     doupdate();
+#endif
 }
 
 void Screen::resize()
@@ -1191,8 +1257,13 @@ void Screen::resize()
     // resize columns
     timeStampColumn->resize(columnHeight, DEFAULT_TIME_COL_WIDTH, 0);
     pidColumn->resize(columnHeight, DEFAULT_PID_COL_WIDTH, DEFAULT_PID_COL_X);
+#ifdef __FreeBSD__
+    processColumn->resize(columnHeight, DEFAULT_PROCESS_COL_WIDTH, DEFAULT_PROCESS_COL_X);
+    operationColumn->resize(columnHeight, DEFAULT_OPERATION_COL_WIDTH, DEFAULT_OPERATION_COL_X);
+#else
     processColumn->resize(columnHeight, DEFAULT_PROCESS_COL_WIDTH, DEFAULT_RESULT_COL_X);
     operationColumn->resize(columnHeight, DEFAULT_OPERATION_COL_WIDTH, DEFAULT_RESULT_COL_X);
+#endif
     resultColumn->resize(columnHeight, DEFAULT_RESULT_COL_WIDTH, DEFAULT_RESULT_COL_X);
     durationColumn->resize(columnHeight, DEFAULT_DURATION_COL_WIDTH, DEFAULT_DURATION_COL_X);
     detailColumn->resize(columnHeight, screenW - DEFAULT_DETAIL_COL_X, DEFAULT_DETAIL_COL_X);
@@ -1383,7 +1454,11 @@ void Screen::showStatView()
     statViewActive = true;
 
     // move stat panel to front
+#ifdef __FreeBSD__
+    show_panel(statPanel); top_panel(statPanel);
+#else
     panel_above(statPanel);
+#endif
 
     // print header
     windowPrintFill(statWin, COLUMN_HEADER_COLOR, 1, y, " Top 10 Syscall Statistics:");
@@ -1440,7 +1515,11 @@ void Screen::showHelpView()
     helpViewActive = true;
 
     // move help panel to front
+#ifdef __FreeBSD__
+    show_panel(helpPanel); top_panel(helpPanel);
+#else
     panel_above(helpPanel);
+#endif
 
     // print header
     windowPrintFill(helpWin, COLUMN_HEADER_COLOR, 1, y, "%s %s", "Sysinternals - Procmon",  STRFILEVER);
@@ -1503,6 +1582,45 @@ void Screen::closeHelpView()
 
 void Screen::showDetailView()
 {
+#ifdef __FreeBSD__
+    using namespace procmon::freebsd::app;
+    if (eventList.empty() || currentLine < 1 || static_cast<std::size_t>(currentLine) > eventList.size()) return;
+    auto& event = eventList[currentLine - 1];
+    auto* format = GetFormatter(event);
+    if (!format) format = formatters.front();
+    std::vector<std::string> lines;
+    const int width = screenW - 8, height = screenH - 2;
+    auto append = [&](const std::string& text)
+    { for (std::size_t offset = 0; offset < text.size(); offset += width) lines.push_back(text.substr(offset,width)); };
+    append("Timestamp: " + format->GetTimestamp(event));
+    append("PID: " + format->GetPID(event) + " Process: " + format->GetProcess(event));
+    append("Syscall: " + format->GetOperation(event));
+    append("Result: " + format->GetResult(event) + " Duration: " + format->GetDuration(event) + " ms");
+    if (event.native)
+    {
+        append("TID: " + std::to_string(event.native->tid) + " UID: " + std::to_string(event.native->uid) +
+            " GID: " + std::to_string(event.native->gid) + " State: " + StateName(event.native->state));
+        append("Arguments (raw values retained in export):");
+        for (const auto& argument : event.native->arguments)
+        { EventData one; one.arguments = {argument}; auto text = Details(one); append(text.substr(text.find(" " + argument.name + "=")) + " (" + argument.type + ")"); }
+    }
+    append("Stack trace:");
+    for (std::size_t index = 0; index < event.stackTrace.userIPs.size(); ++index)
+    {
+        std::ostringstream text; text << "0x" << std::hex << event.stackTrace.userIPs[index] << " ";
+        text << (index < event.stackTrace.userSymbols.size() ? event.stackTrace.userSymbols[index] : "[symbol unavailable]"); append(text.str());
+    }
+    detailViewActive = true;
+    move_panel(detailPanel,1,2);
+    if (wresize(detailWin,height,screenW - 4) == ERR || replace_panel(detailPanel,detailWin) == ERR)
+        throw std::runtime_error("cannot resize native event detail window");
+    detailScroll = std::clamp(detailScroll,0,std::max(0,static_cast<int>(lines.size()) - (height - 4)));
+    werase(detailWin); show_panel(detailPanel); top_panel(detailPanel);
+    mvwaddnstr(detailWin,1,2,"Event Properties (arrows/page keys scroll, Enter closes)",width);
+    for (int row = 0; row < height - 4 && row + detailScroll < static_cast<int>(lines.size()); ++row)
+        mvwaddnstr(detailWin,row + 2,2,lines[row + detailScroll].c_str(),width);
+    box(detailWin,'|','_'); refreshScreen();
+#else
     int y = 1;
     ITelemetry * event;
     StackTrace * eventTrace;
@@ -1564,6 +1682,7 @@ void Screen::showDetailView()
 
     // refresh screen to draw window
     refreshScreen();
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -1571,6 +1690,10 @@ void Screen::showDetailView()
 // ----------------------------------------------------------------------------
 bool Screen::ResolveSymbols(StackTrace* stack, pid_t pid)
 {
+#ifdef __FreeBSD__
+    (void)pid;
+    return !stack->userIPs.empty() && stack->userSymbols.size() == stack->userIPs.size();
+#else
     void* symResolver = NULL;
 
     if (symEnginePidMap.find(pid) == symEnginePidMap.end())
@@ -1611,10 +1734,14 @@ bool Screen::ResolveSymbols(StackTrace* stack, pid_t pid)
     }
 
     return true;
+#endif
 }
 
 void Screen::closeDetailView()
 {
+#ifdef __FreeBSD__
+    detailScroll = 0;
+#endif
     // toggle detail view control
     detailViewActive = false;
 
@@ -1635,7 +1762,11 @@ void Screen::showColumnView()
     columnSortViewActive = true;
 
     // move column panel to top to be visible
+#ifdef __FreeBSD__
+    show_panel(columnPanel); top_panel(columnPanel);
+#else
     panel_above(columnPanel);
+#endif
 
     // Add header to column view
     windowPrintFill(columnWin, COLUMN_HEADER_COLOR, y, 1, " Select Column");
