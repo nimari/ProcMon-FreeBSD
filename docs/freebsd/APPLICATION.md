@@ -26,13 +26,29 @@ a separate build with `-DPROCMON_USE_SYSTEM_SQLITE=ON`. CMake then uses
 `SQLite::SQLite3` and does not build the bundled SQLite target. The resulting
 executable requires that installed library at runtime. The default remains OFF.
 
+`PROCMON_USE_SYSTEM_EASYLOGGINGPP=ON` compiles installed Easylogging++ source
+with the same thread-safe configuration as the application. It requires
+co-located `easylogging++.h` and `easylogging++.cc`; CMake finds their directory
+or accepts `PROCMON_EASYLOGGINGPP_INCLUDE_DIR`. It does not link the installed
+shared logger library. The selected logger's MIT license is always installed as
+`EASYLOGGINGPP-LICENSE`. CMake finds a single installed FreeBSD package license
+under that prefix, or requires `PROCMON_EASYLOGGINGPP_LICENSE_FILE` explicitly.
+Keep the license matched to the selected source. The default uses bundled source
+and its preserved copyright/license notice.
+
+`PROCMON_CURSES_ROOT` defaults to `/usr` for base wide curses/panel. Set it to
+`/usr/local` for the ports provider. Headers and both libraries must exist within
+the selected prefix and pass a wide-character compile/link check. Changing the
+prefix re-resolves all curses inputs, including in an existing build directory.
+
 `PROCMON_INSTALL_DOCS` defaults to ON. Set it to OFF to omit the supplemental
-README; the executable, manual, license and SQLite notice remain installed.
+README; the executable, manual and all three legal files remain installed.
 Use `CMAKE_INSTALL_PREFIX`, the GNU install directory settings and `DESTDIR` for
 prefix selection and staging. The FreeBSD targets retain frame pointers, while
 debug information follows the build type and caller-supplied compiler flags.
-Use the bundled default build with the standalone package script; a system-library
-package needs declared runtime dependencies through the ports framework.
+The standalone package script requires the bundled default, base curses and docs
+ON. It rejects other configurations before creating output. Packages using
+external libraries need declared runtime dependencies through the ports framework.
 
 Choose an already running native process and replace `1234` with its PID:
 

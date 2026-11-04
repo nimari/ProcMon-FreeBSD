@@ -30,7 +30,8 @@ validation are complete, build the application using
 
 Microsoft's original Linux archive does not include this community port and must
 not be used as the FreeBSD distfile. The standalone `package.sh` script is for
-the current bundled-library build; it does not replace framework package creation
+the default bundled-library/base-curses build with docs ON and rejects external
+libraries; it does not replace framework package creation
 or validation of a system-library build.
 
 Current baseline results and limits are in

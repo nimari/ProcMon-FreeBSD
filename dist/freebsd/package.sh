@@ -14,6 +14,9 @@ fi
 if ! grep -q '^PROCMON_INSTALL_DOCS:BOOL=ON$' "$build/CMakeCache.txt"; then
     echo 'standalone packaging requires PROCMON_INSTALL_DOCS=ON' >&2; exit 2
 fi
+if ! grep -q '^PROCMON_CURSES_ROOT:PATH=/usr$' "$build/CMakeCache.txt"; then
+    echo 'standalone packaging requires base curses; use ports for external libraries' >&2; exit 2
+fi
 test ! -e "$out"
 mkdir -p "$out/stage" "$out/manifest"
 DESTDIR="$out/stage" cmake --install "$build" --prefix /usr/local --strip > "$out/install.log"

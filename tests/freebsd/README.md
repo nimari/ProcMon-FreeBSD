@@ -27,6 +27,18 @@ Compare separate staged installs with `PROCMON_INSTALL_DOCS` ON and OFF: only th
 README should differ. Repeat staging with a custom `CMAKE_INSTALL_PREFIX` and
 `DESTDIR`; the manual and legal notices must remain present with docs disabled.
 
+For system logging, enable `PROCMON_USE_SYSTEM_EASYLOGGINGPP` with installed
+co-located source/header and its matching MIT license. Check every affected
+compiler command uses the selected header and thread-safe logger definitions;
+the application must compile that source rather than link `libeasyloggingpp.so`.
+Test default bundled dependencies and full system dependencies with both
+`PROCMON_CURSES_ROOT=/usr` and `/usr/local`. Verify selected headers and `ldd`
+paths. Replay an owned-fixture trace in a PTY with `--log` to exercise logging
+and actual curses operation without new live tracing. Check the installed
+`EASYLOGGINGPP-LICENSE` matches the selected source, including with docs OFF.
+Missing logger source/license and incomplete curses prefixes must fail configure.
+The standalone package helper must reject external-library configurations.
+
 ## Application runtime and terminal checks
 
 The integration runner starts controlled fixtures, traces their PIDs, checks

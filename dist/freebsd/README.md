@@ -44,6 +44,7 @@ and kernel CTF fields are private interfaces. Validate a different kernel before
 relying on it. Exit codes: 0 success, 1 capture/storage failure, 2 usage, 130/143
 signal stop. Inspect trace metadata to assess completeness.
 
-MIT project license: see LICENSE. Bundled SQLite is public domain; its notice is
+MIT project license: see LICENSE. The selected logger's license and attribution
+are in EASYLOGGINGPP-LICENSE. Bundled SQLite is public domain; its notice is
 in SQLITE-NOTICE. No publication, ports acceptance or Microsoft endorsement is
 implied by this community project.
