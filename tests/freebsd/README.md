@@ -19,6 +19,14 @@ Seven CTests exercise storage and native components without privileged tracing.
 The CLI suite also runs without tracing privileges and checks rejection paths.
 Do not run live DTrace integration tests in a build jail.
 
+For system SQLite, repeat the build/unit/CLI checks in a separate build directory
+with `-DPROCMON_USE_SYSTEM_SQLITE=ON` and SQLite 3.33.0 or later installed. Check
+that compiler inputs use its headers and `ldd` lists its shared library; the
+bundled build should have neither that runtime dependency nor system headers.
+Compare separate staged installs with `PROCMON_INSTALL_DOCS` ON and OFF: only the
+README should differ. Repeat staging with a custom `CMAKE_INSTALL_PREFIX` and
+`DESTDIR`; the manual and legal notices must remain present with docs disabled.
+
 ## Application runtime and terminal checks
 
 The integration runner starts controlled fixtures, traces their PIDs, checks

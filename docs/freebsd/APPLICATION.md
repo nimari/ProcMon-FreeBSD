@@ -4,7 +4,8 @@ Target: FreeBSD 15.1 amd64, native ELF64. This is a community port of
 Microsoft ProcMon-Linux. Native implementation version: 2.2.2.1. This is not an
 official Microsoft FreeBSD release.
 The Linux eBPF backend remains selected on Linux. FreeBSD uses base libdtrace,
-CTF metadata, libprocstat/libelf and curses/panel, with bundled SQLite.
+CTF metadata, libprocstat/libelf and curses/panel. SQLite is bundled by default;
+an installed SQLite library can be selected explicitly.
 
 ## Build and run
 
@@ -19,6 +20,19 @@ ctest --test-dir build/freebsd --output-on-failure
 ./build/freebsd/procmon --version
 ./build/freebsd/procmon --help
 ```
+
+To use installed SQLite headers and a library (version 3.33.0 or later), configure
+a separate build with `-DPROCMON_USE_SYSTEM_SQLITE=ON`. CMake then uses
+`SQLite::SQLite3` and does not build the bundled SQLite target. The resulting
+executable requires that installed library at runtime. The default remains OFF.
+
+`PROCMON_INSTALL_DOCS` defaults to ON. Set it to OFF to omit the supplemental
+README; the executable, manual, license and SQLite notice remain installed.
+Use `CMAKE_INSTALL_PREFIX`, the GNU install directory settings and `DESTDIR` for
+prefix selection and staging. The FreeBSD targets retain frame pointers, while
+debug information follows the build type and caller-supplied compiler flags.
+Use the bundled default build with the standalone package script; a system-library
+package needs declared runtime dependencies through the ports framework.
 
 Choose an already running native process and replace `1234` with its PID:
 
