@@ -1,3 +1,27 @@
+# ProcMon-FreeBSD
+
+A community FreeBSD port of [Microsoft ProcMon-Linux](https://github.com/microsoft/ProcMon-Linux),
+with native DTrace syscall capture, a terminal interface, and private SQLite
+trace export/replay. Target: **FreeBSD 15.1 amd64, native ELF64 processes**.
+This project is maintained independently and is not an official Microsoft release.
+
+- [Build and run](docs/freebsd/APPLICATION.md)
+- [Native architecture and data flow](docs/freebsd/ARCHITECTURE.md)
+- [Tests and reproduction](tests/freebsd/README.md)
+- [Validation and limitations](docs/freebsd/VALIDATION.md)
+- [Ports preparation status](dist/freebsd/PORTS.md)
+
+The current implementation version is 2.2.2.1. Ports preparation and a public
+2.2.2.2 release are in progress; the recipe is not yet ready for submission.
+Live tracing requires tracing privileges and the DTrace syscall provider.
+See the native instructions before running; the examples below describe Linux.
+
+Microsoft's copyright and [MIT license](LICENSE) are retained. See
+[NOTICE.txt](NOTICE.txt) for third-party notices. Linux source and its original
+build path are preserved; Linux runtime regression has not been performed.
+
+---
+
 # Process Monitor for Linux (Preview) [![Build Status](https://dev.azure.com/sysinternals/Tools/_apis/build/status/Sysinternals.ProcMon-for-Linux?repoName=Sysinternals%2FProcMon-for-Linux&branchName=main)](https://dev.azure.com/sysinternals/Tools/_build/latest?definitionId=342&repoName=Sysinternals%2FProcMon-for-Linux&branchName=main)
 Process Monitor (Procmon) is a Linux reimagining of the classic Procmon tool from the Sysinternals suite of tools for Windows.  Procmon provides a convenient and efficient way for Linux developers to trace the syscall activity on the system.
 
