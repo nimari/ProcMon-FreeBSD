@@ -14,8 +14,52 @@ option(PROCMON_USE_SYSTEM_SQLITE "Use an installed SQLite library instead of the
 option(PROCMON_USE_SYSTEM_EASYLOGGINGPP "Compile installed Easylogging++ source instead of the bundled copy" OFF)
 option(PROCMON_INSTALL_DOCS "Install supplemental FreeBSD documentation" ON)
 find_package(Threads REQUIRED)
-find_library(FREEBSD_CURSES NAMES ncursesw REQUIRED)
-find_library(FREEBSD_PANEL NAMES panelw REQUIRED)
+set(PROCMON_CURSES_ROOT "/usr" CACHE PATH "Prefix supplying matching wide curses/panel headers and libraries")
+if(NOT IS_ABSOLUTE "${PROCMON_CURSES_ROOT}")
+    message(FATAL_ERROR "PROCMON_CURSES_ROOT must be an absolute prefix")
+endif()
+# Re-resolve on every configure so changing providers cannot retain old cache entries.
+foreach(entry FREEBSD_CURSES_INCLUDE_DIR FREEBSD_CURSES FREEBSD_PANEL FREEBSD_WIDE_CURSES)
+    unset(${entry} CACHE)
+    unset(${entry})
+endforeach()
+find_path(FREEBSD_CURSES_INCLUDE_DIR NAMES ncurses.h
+    PATHS "${PROCMON_CURSES_ROOT}/include/ncursesw" "${PROCMON_CURSES_ROOT}/include/ncurses" "${PROCMON_CURSES_ROOT}/include"
+    NO_DEFAULT_PATH REQUIRED)
+if(NOT EXISTS "${FREEBSD_CURSES_INCLUDE_DIR}/panel.h")
+    message(FATAL_ERROR "The selected curses header directory must also supply panel.h")
+endif()
+# The ports provider uses unsuffixed names for its wide-character libraries.
+find_library(FREEBSD_CURSES NAMES ncursesw ncurses PATHS "${PROCMON_CURSES_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+find_library(FREEBSD_PANEL NAMES panelw panel PATHS "${PROCMON_CURSES_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+cmake_push_check_state(RESET)
+set(CMAKE_REQUIRED_INCLUDES "${FREEBSD_CURSES_INCLUDE_DIR}")
+set(CMAKE_REQUIRED_LIBRARIES "${FREEBSD_PANEL}" "${FREEBSD_CURSES}")
+set(CMAKE_REQUIRED_DEFINITIONS -D_XOPEN_SOURCE_EXTENDED=1)
+check_cxx_source_compiles([[
+#include <ncurses.h>
+#include <panel.h>
+#if !defined(NCURSES_WIDECHAR) || !NCURSES_WIDECHAR
+#error Wide-character curses is required
+#endif
+int main() {
+    cchar_t character{};
+    WINDOW* window = nullptr;
+    (void)wadd_wch(window, &character);
+    PANEL* panel = new_panel(window);
+    return del_panel(panel);
+}
+]] FREEBSD_WIDE_CURSES)
+cmake_pop_check_state()
+if(NOT FREEBSD_WIDE_CURSES)
+    message(FATAL_ERROR "The selected curses/panel headers and libraries must support wide characters")
+endif()
+add_library(procmon_freebsd_terminal INTERFACE)
+target_include_directories(procmon_freebsd_terminal INTERFACE "${FREEBSD_CURSES_INCLUDE_DIR}")
+target_compile_definitions(procmon_freebsd_terminal INTERFACE _XOPEN_SOURCE_EXTENDED=1)
+target_link_libraries(procmon_freebsd_terminal INTERFACE "${FREEBSD_PANEL}" "${FREEBSD_CURSES}")
 set(FREEBSD_APP "${CMAKE_CURRENT_SOURCE_DIR}/src/tracer/freebsd/app")
 add_library(procmon_freebsd_logging INTERFACE)
 target_compile_definitions(procmon_freebsd_logging INTERFACE ELPP_THREAD_SAFE ELPP_NO_DEFAULT_LOG_FILE)
@@ -62,11 +106,11 @@ target_link_libraries(procmon_freebsd_transport PUBLIC dtrace ctf Threads::Threa
 add_library(procmon_freebsd_core STATIC "${FREEBSD_APP}/event.cpp" "${FREEBSD_APP}/storage.cpp" "${FREEBSD_APP}/capture.cpp"
     "${FREEBSD_APP}/engine.cpp" "${FREEBSD_APP}/symbols.cpp" "${FREEBSD_APP}/output.cpp" src/common/printable.cpp)
 target_compile_definitions(procmon_freebsd_core PUBLIC NCURSES_NOMACROS=1)
-target_link_libraries(procmon_freebsd_core PUBLIC procmon_freebsd_transport ${FREEBSD_SQLITE_TARGET} procmon_freebsd_logging procstat elf)
+target_link_libraries(procmon_freebsd_core PUBLIC procmon_freebsd_transport ${FREEBSD_SQLITE_TARGET} procmon_freebsd_logging procmon_freebsd_terminal procstat elf)
 add_executable(procmon "${FREEBSD_APP}/main.cpp" "${FREEBSD_APP}/configuration.cpp" "${FREEBSD_APP}/formatter.cpp"
     "${FREEBSD_APP}/headless.cpp" "${FREEBSD_APP}/cli.cpp" src/display/screen.cpp src/display/column.cpp "${FREEBSD_LOGGING_SOURCE}")
 target_include_directories(procmon PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/src")
-target_link_libraries(procmon PRIVATE procmon_freebsd_core ${FREEBSD_PANEL} ${FREEBSD_CURSES})
+target_link_libraries(procmon PRIVATE procmon_freebsd_core)
 foreach(target procmon procmon_freebsd_transport procmon_freebsd_core)
     target_compile_options(${target} PRIVATE -fno-omit-frame-pointer -Wall -Wextra
         -Wno-unused-parameter -Wno-sign-compare -Wno-delete-non-abstract-non-virtual-dtor -Wno-misleading-indentation)
